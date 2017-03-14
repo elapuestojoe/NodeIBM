@@ -1,0 +1,40 @@
+{
+  "name": "Hello-Blockchain",
+  "version": "0.0.1",
+  "description": "A Node.js hello-world program using NodeSdk Apis",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "engines": {
+    "node": "*"
+  },
+  "keywords": [
+    "Blockchain Hello-World",
+    "Hello-Blockchain",
+    "Blockchain sample program",
+    "blockchain hello world"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IBM-Blockchain/SDK-Demo.git"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "hfc": "^0.6.5",
+    "async": "0.9.0",
+    "body-parser": "1.0.2",
+    "cf-deployment-tracker-client": "*",
+    "compression": "1.4.4",
+    "cookie-parser": "1.0.1",
+    "cors": "2.5.3",
+    "debug": "0.7.4",
+    "express": "4.0.0",
+    "express-session": "1.2.1",
+    "ibm-blockchain-js": "1.3.*",
+    "jade": "1.3.1",
+    "morgan": "1.1.1",
+    "serve-static": "1.9.2",
+    "ws": "1.0.1"
+  }
+}

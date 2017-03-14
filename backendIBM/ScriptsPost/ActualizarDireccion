@@ -1,0 +1,1 @@
+curl -H "Content-Type:application/json" -X POST -d '{"username" : "KEY0", "direccion": "SOY UNA NUEVA DIRECCION"}' http://127.0.0.1:3000/actualizarDireccion

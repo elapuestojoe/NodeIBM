@@ -1,0 +1,1 @@
+curl -H "Content-Type:application/json" -X POST -d '{"username" : "banorteUser", "password": "banortePassword"}' http://127.0.0.1:3000/nodo/login

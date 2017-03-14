@@ -1,0 +1,5 @@
+curl -H "Content-Type:application/json" -X POST -d '{"nodeUsername" : "banorteUser", "nodePassword": "banortePassword", "userPassword": "userPassword",
+"nombre": "Kevin",
+"apellidoPaterno":"Islas",
+"apellidoMaterno":"Abud",
+"direccion": "MiDireccion"}' http://127.0.0.1:3000/user/new

@@ -1,0 +1,4 @@
+curl -H "Content-Type:application/json" -X POST -d '{"nodeUsername" : "banorteUser", "nodePassword": "banortePassword", "userPassword": "userPassword",
+"userIndex": "22",
+"key": "direccion",
+"newValue": "NuevaDireccion"}' http://127.0.0.1:3000/user/update
