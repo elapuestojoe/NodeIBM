@@ -769,7 +769,30 @@ router.post("/user/getRequests", function(req, res, next) {
 	}).catch((error) => {
 		res.send(error+"\n");
 	});
-
 });
 
+function authenticateUser(userIndex, userPassword) {
+	return new Promise(function (resolve, reject) {
+		readFromChain(userIndex).then(function (user) {
+
+			userJSON = JSON.parse(user);
+
+			resolve(userJSON.password == userPassword);
+		}).catch((error) => {
+			reject(false);
+		});
+	});
+}
+router.post("/user/login", function(req, res, next) {
+	console.log("user/login");
+
+	var userIndex = req.body.userIndex;
+	var userPassword = req.body.userPassword;
+
+	authenticateUser(userIndex, userPassword).then(function (response) {
+		res.send(response);
+	}).catch((error) => {
+		res.send(error);
+	});
+})
 module.exports = router;
