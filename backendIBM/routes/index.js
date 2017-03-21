@@ -16,6 +16,9 @@ var chaincode = null;
 init();
 despliegaUObtieneChaincode(prefer_type1_users(users));
 
+getUserIndex().then(function(userIndex) {
+	console.log(userIndex);
+})
 
 //Descomentar en produccion
 //setNodes();
@@ -152,6 +155,19 @@ function setUserIndex(newIndex){
 	return new Promise(function(resolve, reject) {
 
 		writeToChain("USERINDEX", newIndex).then(function (response){
+			if(response) {
+				resolve(newIndex);
+			} else {
+				reject("ERROR");
+			}
+		});
+	});
+}
+
+function resetUserIndex() {
+	return new Promise(function(resolve, reject) {
+
+		writeToChain("USERINDEX", 1).then(function (response){
 			if(response) {
 				resolve(newIndex);
 			} else {
@@ -391,6 +407,37 @@ function consultaPersona(serviceCredentials){
 	});
 }
 
+function requestInformation(nodeUsername, nodePassword, userIndex, keys) {
+	console.log("requestInformation");
+
+	//Crea el paquete
+	var request = {};
+	request.node = nodeUsername;
+	request.keys = keys; //Array of keys
+
+	return new Promise(function (resolve, reject) {
+
+		readFromChain(userIndex).then(function (user) {
+						
+			userJSON = JSON.parse(user);
+
+			if(!userJSON.requests) {
+				userJSON.requests = [];
+			}
+
+			userJSON.requests.push(request);
+
+			writeToChain(userIndex, JSON.stringify(userJSON)).then(function(response){
+				resolve(response);
+			}).catch((error) => {
+				reject(error);
+			});
+		}).catch((error) => {
+			reject(error);
+		});
+	});
+}
+
 //Test Registra
 function registraPersona(serviceCredentials){
 	despliegaUObtieneChaincode(serviceCredentials, function (){
@@ -598,6 +645,29 @@ router.post("/user/update", function(req, res, next) {
 	}
 })
 
+router.post("user/updateMultipleValues", function(req, res, next) {
+	console.log("/user/updateMultipleValues");
+	console.log(req.body);
+
+	var userIndex = req.body.userIndex;
+
+	var nodeUsername = req.body.nodeUsername;
+	var nodePassword = req.body.nodePassword;
+
+	var fields = req.body.fields;
+
+	//function appendInfoToUser(adminUser, adminPassword, userIndex, fieldArray) {
+	if(userIndex) {
+		appendInfoToUser(nodeUsername, nodePassword, userIndex, fields).then(function (response) {
+			res.send("User info updated\n");
+		}).catch((error) => {
+			res.send(error + "\n");
+		});
+	} else {
+		res.send("User index cant be empty\n");
+	}
+});
+
 router.post("/user/get", function (req, res, next) {
 	console.log("/user/get");
 	console.log(req.body);
@@ -647,5 +717,59 @@ router.post("/user/getField", function (req, res, next) {
 	}
 
 })
+
+//REQUEST USER INFO
+router.post("/node/requestUserInfo", function (req, res, next) {
+	console.log("node/requestUserInfo");
+	console.log("req.body");
+
+	var nodeUsername = req.body.nodeUsername;
+	var nodePassword = req.body.nodePassword;
+	var userIndex = req.body.userIndex;
+
+	var keys = req.body.keys;
+
+	authenticateNode(nodeUsername, nodePassword).then(function (response) {
+
+		if(response) {
+			//Autenticado, agregar cosas
+			requestInformation(nodeUsername, nodePassword, userIndex, keys).then(function(response){
+
+				res.send("Request sent to user\n");
+			}).catch((error) => {
+				res.send(error+"\n");
+			});
+
+		} else {
+			res.send(error+"\n");
+		}
+	}).catch((error) => {
+		res.send(error + "\n");
+	});
+})
+
+function getRequests(userIndex) {
+	return new Promise(function (resolve, reject) {
+		readFromChain(userIndex).then(function (user) {
+			userJSON = JSON.parse(user);
+
+			resolve(userJSON.requests);
+		}).catch((error)=> {
+			reject(error+"\n");
+		});
+	});
+}
+
+router.post("/user/getRequests", function(req, res, next) {
+	console.log("user/getRequests");
+	var userIndex = req.body.userIndex;
+
+	getRequests(userIndex).then(function (requests) {
+		res.send(requests);
+	}).catch((error) => {
+		res.send(error+"\n");
+	});
+
+});
 
 module.exports = router;
