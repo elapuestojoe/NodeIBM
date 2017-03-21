@@ -351,7 +351,7 @@ function createUser(nodeUsername, nodePassword, password) {
 
 								user = {}
 								user.password = password;
-
+								user.requestsIndex = 0;
 								writeToChain(index, JSON.stringify(user)).then(function (r) {
 									if(r){
 										resolve(index);
@@ -407,20 +407,23 @@ function consultaPersona(serviceCredentials){
 	});
 }
 
-function requestInformation(nodeUsername, nodePassword, userIndex, keys) {
+function requestInformation(nodeUsername, nodePassword, userIndex, keys, dateForRequest) {
 	console.log("requestInformation");
 
 	//Crea el paquete
 	var request = {};
 	request.node = nodeUsername;
 	request.keys = keys; //Array of keys
-
+	request.dateForRequest = dateForRequest;
 	return new Promise(function (resolve, reject) {
 
 		readFromChain(userIndex).then(function (user) {
 						
 			userJSON = JSON.parse(user);
 
+			//Index de request
+			request.requestIndex = userJSON.requestsIndex;
+			userJSON.requestsIndex = userJSON.requestsIndex + 1;
 			if(!userJSON.requests) {
 				userJSON.requests = [];
 			}
@@ -727,13 +730,16 @@ router.post("/node/requestUserInfo", function (req, res, next) {
 	var nodePassword = req.body.nodePassword;
 	var userIndex = req.body.userIndex;
 
+	//new Date(Date.parse("2005-07-08"));
+	//2005, Julio 8
+	var dateForRequest = req.body.dateForRequest;
 	var keys = req.body.keys;
 
 	authenticateNode(nodeUsername, nodePassword).then(function (response) {
 
 		if(response) {
 			//Autenticado, agregar cosas
-			requestInformation(nodeUsername, nodePassword, userIndex, keys).then(function(response){
+			requestInformation(nodeUsername, nodePassword, userIndex, keys, dateForRequest).then(function(response){
 
 				res.send("Request sent to user\n");
 			}).catch((error) => {
