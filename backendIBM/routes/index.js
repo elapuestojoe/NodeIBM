@@ -763,9 +763,18 @@ function getRequests(userIndex) {
 router.post("/user/getRequests", function(req, res, next) {
 	console.log("user/getRequests");
 	var userIndex = req.body.userIndex;
+	var userPassword = req.body.userPassword;
+	authenticateUser(userIndex, userPassword).then( function(response) {
 
-	getRequests(userIndex).then(function (requests) {
-		res.send(requests);
+		if(response) {
+			getRequests(userIndex).then(function (requests) {
+				res.send(requests);
+			}).catch((error) => {
+				res.send(error+"\n");
+			});	
+		} else {
+			res.send("Bad login");
+		}
 	}).catch((error) => {
 		res.send(error+"\n");
 	});
