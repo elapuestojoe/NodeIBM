@@ -16,9 +16,9 @@ var chaincode = null;
 init();
 despliegaUObtieneChaincode(prefer_type1_users(users));
 
-getUserIndex().then(function(userIndex) {
-	console.log(userIndex);
-})
+// getUserIndex().then(function(userIndex) {
+// 	console.log(userIndex);
+// })
 
 //Descomentar en produccion
 //setNodes();
@@ -63,7 +63,7 @@ function despliegaUObtieneChaincode(serviceCredentials, cb){
 						peers: [peers[0]], //Peer a utilizar para ejecutar el despliegue del chaincode
 						users: serviceCredentials, //Credenciales a utilizar para ejecutar el despliegue del chaincode
 						options: {
-									quiet: true,
+									quiet: false,
 									tls: detect_tls_or_not(peers),
 									maxRetry: 1
 								 }
@@ -248,6 +248,17 @@ function updateInfoUser(adminUser, adminPassword, userIndex, campoNuevo, valorNu
 						newBlock.keyValue = valorNuevo;
 						newBlock.signature = adminUser;
 						userJSON[campoNuevo] = newBlock;
+
+						if(userJSON.syncronizedFields[campoNuevo]) {
+							var nodesToUpdate = userJSON.syncronizedFields[campoNuevo];
+
+
+							for (var i = nodesToUpdate.length - 1; i >= 0; i--) {
+								var node = nodesToUpdate[i];
+								var info = [[campoNuevo, newBlock]];
+								sendInfoToNode(node, userIndex, info);
+							};
+						}
 
 						writeToChain(userIndex, JSON.stringify(userJSON)).then(function(response){
 							resolve(response);
@@ -809,5 +820,163 @@ router.post("/user/login", function(req, res, next) {
 	}).catch((error) => {
 		res.send(error);
 	});
+});
+
+function sendInfoToNode(nodeUsername, userIndex, infoApproved) {
+	console.log("SENDINFOTONODE");
+	return new Promise(function (resolve, reject) {
+
+		
+		readFromChain(nodeUsername+"-"+userIndex).then(function (nodeAndUser) {
+			var nodeUserInfo = JSON.parse(nodeAndUser);
+
+			for (var i = infoApproved.length - 1; i >= 0; i--) {
+				var info = infoApproved[i];
+
+				var key = info[0]
+				var newInfo = {}
+				newInfo.keyValue = info[1].keyValue;
+				newInfo.signature = info[1].signature;
+
+				var oldDate = nodeUserInfo[key].endDate;
+				if(info[2]) {
+					newInfo.endDate = info[2];
+				} else {
+					newInfo.endDate = oldDate;
+				}
+				nodeUserInfo[key] = newInfo;
+			};
+			console.log("AYUDA");
+			console.log(nodeUserInfo);
+			writeToChain(nodeUsername+"-"+userIndex, JSON.stringify(nodeUserInfo)).then(function (result) {
+
+				if(result) {
+					resolve("Info agregada a nodo");
+				} else {
+					reject("Error");
+				}
+			}).catch((error) => {
+				reject(error);
+			});
+		}).catch((error) => {
+
+			console.log("AYUDA");
+			console.log(error);
+			//No existe, debemos crearlo
+			var nodeUserInfo = {};
+
+			for (var i = infoApproved.length - 1; i >= 0; i--) {
+				var info = infoApproved[i];
+				var key = info[0]
+				var newInfo = {}
+				newInfo.keyValue = info[1].keyValue;
+				newInfo.signature = info[1].signature;
+				newInfo.endDate = info[2];
+				nodeUserInfo[key] = newInfo;
+			};
+
+			writeToChain(nodeUsername+"-"+userIndex, JSON.stringify(nodeUserInfo)).then(function (result) {
+
+				if(result) {
+					resolve("Info agregada a nodo");
+				} else {
+					reject("Error");
+				}
+			}).catch((error) => {
+				reject(error);
+			});
+		});
+	})
+}
+
+function handleRequest(userIndex, userPassword, requestIndex, keys) {
+	return new Promise(function (resolve, reject) {
+
+		//Get user 
+		readFromChain(userIndex).then(function (user) {
+
+			var userJSON = JSON.parse(user);
+			var infoApproved = [];
+
+			var dateForRequest = userJSON.requests[requestIndex].dateForRequest;
+			var nodeUsername = userJSON.requests[requestIndex].node;
+
+			if(!userJSON.syncronizedFields) {
+				userJSON.syncronizedFields = {}
+			}
+
+			for (var i = keys.length - 1; i >= 0; i--) {
+				var key = keys[i];
+
+				if(userJSON[key]) {
+					infoApproved.push([key, userJSON[key], dateForRequest]);
+				}
+
+				if(userJSON.syncronizedFields[key]) {
+					userJSON.syncronizedFields[key].push(nodeUsername);
+				} else {
+					userJSON.syncronizedFields[key] = [nodeUsername];
+				}
+			};
+
+			sendInfoToNode(nodeUsername, userIndex, infoApproved).then(function (result) {
+
+				if(result) {
+
+					//Ya se escribió, ahora eliminar de almacen personal de requests
+					delete userJSON.requests[requestIndex];
+
+					writeToChain(userIndex, JSON.stringify(userJSON)).then(function (res) {
+						resolve("OK");
+					}).catch((error) => {
+						reject("ERROR");
+					});
+				} else {
+					reject("ERROR");
+				}
+			});
+		}).catch((error) => {
+			reject(error);
+		});
+
+	});
+}
+
+router.post("/user/handleRequest", function(req, res, next) {
+	console.log("user/handleRequest");
+	var userIndex = req.body.userIndex;
+	var userPassword = req.body.userPassword;
+	var requestIndex = req.body.requestIndex;
+	var keys = req.body.keys; // campos aceptados
+	authenticateUser(userIndex, userPassword).then(function (response) {
+		
+		if(response) {
+			handleRequest(userIndex, userPassword, requestIndex, keys).then(function (result) {
+
+				res.send(result);
+			});
+			
+		} else {
+			res.send("Bad Login \n");
+		}
+
+	}).catch((error) => {
+		res.send(error);
+	});
+});
+
+router.post("/node/getUserInfo", function(req, res, next) {
+	console.log("/node/getUserInfo");
+
+	var nodeUsername = req.body.nodeUsername;
+	var nodePassword = req.body.nodePassword;
+	var userIndex = req.body.userIndex;
+
+	readFromChain(nodeUsername+"-"+userIndex).then(function (response) {
+		res.send(response);
+	}).catch((error) => {
+		res.send(error);
+	});
 })
+
 module.exports = router;
