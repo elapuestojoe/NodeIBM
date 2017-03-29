@@ -69,10 +69,10 @@ function despliegaUObtieneChaincode(serviceCredentials, cb){
 								 }
 					},
 					chaincode:{
-						zip_url: 'https://github.com/elapuestojoe/IBMProyecto/raw/master/chaincode_example_personas.go.zip',
+						zip_url: 'https://github.com/elapuestojoe/NodeIBM/raw/master/chaincode_example_personas.go.zip',
 						unzip_dir: '/',
-						git_url: 'https://github.com/elapuestojoe/IBMProyecto',
-						deployed_name: '6448d2657e744c076df3dd39e6657bd397c9d831a5457a64ed88da506b8baa07362a48dd6e41dc279b2a821a1ba0800f4fed69d89fe8f938ee0a3d33f7e137bd'
+						git_url: 'https://github.com/elapuestojoe/NodeIBM',
+						//deployed_name: '6448d2657e744c076df3dd39e6657bd397c9d831a5457a64ed88da506b8baa07362a48dd6e41dc279b2a821a1ba0800f4fed69d89fe8f938ee0a3d33f7e137bd'
 					}
 				};
 
