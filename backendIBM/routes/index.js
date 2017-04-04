@@ -16,9 +16,9 @@ var chaincode = null;
 init();
 despliegaUObtieneChaincode(prefer_type1_users(users));
 
-// getUserIndex().then(function(userIndex) {
-// 	console.log(userIndex);
-// })
+getUserIndex().then(function(userIndex) {
+	console.log(userIndex);
+})
 
 //Descomentar en produccion
 //setNodes();
@@ -63,16 +63,16 @@ function despliegaUObtieneChaincode(serviceCredentials, cb){
 						peers: [peers[0]], //Peer a utilizar para ejecutar el despliegue del chaincode
 						users: serviceCredentials, //Credenciales a utilizar para ejecutar el despliegue del chaincode
 						options: {
-									quiet: false,
+									quiet: true,
 									tls: detect_tls_or_not(peers),
 									maxRetry: 1
 								 }
 					},
 					chaincode:{
-						zip_url: 'https://github.com/elapuestojoe/NodeIBM/raw/master/chaincode_example_personas.zip',
-						unzip_dir: '/Users/Praxis/Documents/IBM/NodeIBM/',
-						git_url: '/Users/Praxis/Documents/IBM/NodeIBM,
-						//deployed_name: '6448d2657e744c076df3dd39e6657bd397c9d831a5457a64ed88da506b8baa07362a48dd6e41dc279b2a821a1ba0800f4fed69d89fe8f938ee0a3d33f7e137bd'
+						zip_url: 'https://github.com/elapuestojoe/IBMProyecto/raw/master/chaincode_example_personas.go.zip',
+						unzip_dir: '/',
+						git_url: 'https://github.com/elapuestojoe/IBMProyecto',
+						deployed_name: '3e1322b3668ad94e8461329153595ee191f19a57754fae672ba51e55dc7f1bb18a14d6895f103b4509fcfb1d996776a1184aaf75541a609cfaf81289682a3bdc'
 					}
 				};
 
