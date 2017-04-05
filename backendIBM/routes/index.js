@@ -46,13 +46,38 @@ function crypto(passPhrase) {
 }
 
 //CIFRADO NODO COOl
-function cipheredPassword(password) {
+function getPublicKey(password) {
+	var bits = 1024;
+	var rsaKey = cryptico.generateRSAKey(password, bits);
+	var rsaPublic = cryptico.publicKeyString(rsaKey);
+
+	return rsaPublic;
+}
+
+function cipherText(text, password) {
+	var bits = 1024;
+	var rsaKey = cryptico.generateRSAKey(password, bits);
+	var rsaPublic = cryptico.publicKeyString(rsaKey);
+
+	return cryptico.encrypt(text, rsaPublic).cipher;	
+}
+
+//llave publica, texto cifrado
+function cipherUser(password, info) {
 	var bits = 1024;
 	var passPhrase = "exito";
 	var rsaKey = cryptico.generateRSAKey(password, bits);
 	var rsaPublic = cryptico.publicKeyString(rsaKey);
 
-	return cryptico.encrypt(passPhrase, rsaPublic).cipher;
+	//return cryptico.
+}
+
+function cipheredPassword(password) {
+	var bits = 1024;
+	var passPhrase = "exito";
+	var rsaKey = cryptico.generateRSAKey(password, bits);
+	//var rsaPublic = cryptico.publicKeyString(rsaKey);
+	return cryptico.encrypt(passPhrase, rsaKey).plaintext;
 }
 
 function descipherPassword(cipher, password) {
@@ -95,9 +120,9 @@ function descipherPassword(cipher, password) {
 // });
 
 // //OBTENER NODOS
-// getNodes().then(function(response) {
-// 	console.log(response);
-// });
+getNodes().then(function(response) {
+	console.log(response);
+});
 
 function init() {
 	var manual = JSON.parse(fs.readFileSync(__dirname + '/ServiceCredentials.json', 'utf8'));
@@ -283,6 +308,47 @@ function addNode(adminUser, adminPassword, newNodeUser, newNodePassword) {
 	});
 }
 
+function authenticateNodeCiphered(adminUser, adminPassword) {
+	return new Promise(function(resolve, reject) {
+		getNodes().then(function(nodes) {
+			if(nodes) {
+				console.log(nodes);
+				resolve("exito" == descipherPassword(nodes[adminUser], adminPassword));
+				//resolve(nodes[adminUser] == adminPassword);
+			} else {
+				reject("Error de Autenticacion");
+			}
+		});
+	});
+}
+
+function addNodeCiphered(adminUser, adminPassword, newNodeUser, newNodePassword) {
+	return new Promise(function (resolve, reject) {
+		authenticateNodeCiphered(adminUser, adminPassword).then(function(result) {
+			//Autenticacion correcta
+			if(result) {
+				getNodes().then(function(nodes) {
+
+					if(nodes) {
+						nodes[newNodeUser] = cipheredPassword(newNodePassword);
+						writeToChain("NODES", JSON.stringify(nodes)).then(function(response) {
+							if(response) {
+								resolve("NODE ADDED");
+							} else {
+								reject("ERROR ADDING NODE")
+							}
+						});
+					} else {
+						reject("ERROR ADDING NODE");
+					}
+				})
+			} else {
+				reject("Bad User/Password");
+			}
+		});
+	});
+}
+
 //TODO JSON PARSE
 
 function updateInfoUser(adminUser, adminPassword, userIndex, campoNuevo, valorNuevo) {
@@ -370,6 +436,46 @@ function appendInfoToUser(adminUser, adminPassword, userIndex, fieldArray) {
 	});
 }
 
+function appendInfoToUserCiphered(adminUser, adminPassword, userIndex, fieldArray, userPassword) {
+	console.log("appendInfoToUser");
+	return new Promise(function (resolve, reject) {
+		authenticateNodeCiphered(adminUser, adminPassword).then(function (result) {
+
+			if(userIndex && fieldArray) {
+				if(result) {
+					readFromChain(userIndex).then(function (user) {
+
+						var userJSON = JSON.parse(user);
+						for (var i = fieldArray.length - 1; i >= 0; i--) {
+
+							var field = fieldArray[i];
+							var key = field[0];
+							var info = {};
+							info.keyValue = cipherText(field[1], userPassword);
+							info.signature = adminUser;
+							userJSON[key] = info;
+						};
+						console.log("AYUDA");
+						console.log(userJSON);
+						writeToChain(userIndex, JSON.stringify(userJSON)).then(function(response){
+							resolve(response);
+						}).catch((error) => {
+							reject(error);
+						});
+
+					}).catch((error) => {
+						reject(error);
+					});
+				} else {
+					reject("Bad User/Password");
+				}
+			} else {
+				reject("userIndex, new key and new value cant be empty");
+			}
+		})
+	});
+}
+
 
 	// 	readFromChain("USERINDEX").then(function(userIndex) {
 
@@ -414,6 +520,60 @@ function createUser(nodeUsername, nodePassword, password) {
 
 								user = {}
 								user.password = password;
+								user.requestsIndex = 0;
+								writeToChain(index, JSON.stringify(user)).then(function (r) {
+									if(r){
+										resolve(index);
+									} else {
+										reject("Error creating user");
+									}
+								}).catch((error) => {
+									reject("Error creating user");
+								});
+
+							} else {
+								reject("Error creating user");
+							}
+						});
+
+					} else {
+						reject("Error creating user");
+					}
+
+				}).catch((error) => {
+					reject(error);
+				});
+
+			} else {
+				reject("Bad User/Password");
+			}
+
+		});
+	});
+}
+
+function createUserCiphered(nodeUsername, nodePassword, password) {
+	return new Promise(function (resolve, reject) {
+
+		authenticateNodeCiphered(nodeUsername, nodePassword).then(function(result) {
+
+			if(result) {
+
+				getUserIndex().then(function (index) {
+
+					if(index) {
+
+						indexNumber = parseInt(index, 10);
+						indexNumber += 1;
+
+						//Descomentar para resetear
+						//indexNumber = 1;
+
+						setUserIndex(""+indexNumber).then(function (response) {
+							if(response) {
+
+								user = {}
+								user.publicKey = getPublicKey(password);
 								user.requestsIndex = 0;
 								writeToChain(index, JSON.stringify(user)).then(function (r) {
 									if(r){
@@ -646,6 +806,34 @@ router.post("/nodo/add", function (req, res,next) {
 	}
 })
 
+router.post("/nodo/addCiphered", function (req, res,next) {
+	console.log("/nodo/addCiphered");
+	console.log(req.body);
+
+	var nodeUsername = req.body.nodeUsername;
+	var nodePassword = req.body.nodePassword;
+
+	var newNodeUsername = req.body.newNodeUsername;
+	var newNodePassword = req.body.newNodePassword;
+
+	if(newNodeUsername && newNodePassword) {
+		addNodeCiphered(nodeUsername, nodePassword, newNodeUsername, newNodePassword).then(function (response) {
+
+			if(response) {
+				res.send("Nodo agregado\n");
+			} else {
+				console.log(error);
+				res.send("Error agregando nodo\n");
+			}
+		}).catch((error) => {
+			console.log(error);
+			res.send(error);
+		});
+	} else {
+		res.send("Nuevo nodo debe tener un usuario / contraseña\n")
+	}
+})
+
 router.post('/user/new', function (req, res, next) {
 	console.log("crearUsuario");
 	console.log(req.body);
@@ -684,6 +872,47 @@ router.post('/user/new', function (req, res, next) {
 		});
 	} else {
 		res.send("User password, name, last name, family name and address cant be empty\n");
+	}
+});
+
+router.post('/user/newCiphered', function (req, res, next) {
+	console.log("user/newCiphered");
+	console.log(req.body);
+
+	var nodeUsername = req.body.nodeUsername;
+	var nodePassword = req.body.nodePassword;
+	var userPassword = req.body.userPassword;
+
+	var nombre = ["nombre", req.body.nombre];
+	var apellidoMaterno = ["apellidoMaterno", req.body.apellidoMaterno];
+	var apellidoPaterno = ["apellidoPaterno", req.body.apellidoPaterno];
+	var direccion = ["direccion", req.body.direccion];
+
+	fieldArray = [nombre, apellidoMaterno, apellidoPaterno, direccion];
+
+	if(userPassword && req.body.nombre &&  req.body.apellidoMaterno && req.body.apellidoPaterno
+		 && req.body.direccion) {
+		createUserCiphered(nodeUsername, nodePassword, userPassword).then(function (response) {
+			if(response) {
+				var userIndex = response;
+				appendInfoToUserCiphered(nodeUsername, nodePassword, response, fieldArray, userPassword).then(function (response) {
+					if(response) {
+						res.json({"index": userIndex});
+					} else {
+						res.json({"error": "ERROR MACABROSO"});
+					}
+				}).catch((error) =>{
+					res.json({"error": error});
+				});
+
+			} else {
+				res.json({"error": error});
+			}
+		}).catch((error) => {
+			res.json({"error": error});
+		});
+	} else {
+		res.json({"error": error});
 	}
 });
 
@@ -861,6 +1090,21 @@ function authenticateUser(userIndex, userPassword) {
 		});
 	});
 }
+
+function authenticateUserCiphered(userIndex, userPassword) {
+	return new Promise(function (resolve, reject) {
+		readFromChain(userIndex).then(function (user) {
+
+			userJSON = JSON.parse(user);
+
+			var publicKey = getPublicKey(userPassword);
+			resolve(userJSON.publicKey == publicKey);
+		}).catch((error) => {
+			reject(false);
+		});
+	});
+}
+
 router.post("/user/login", function(req, res, next) {
 	console.log("user/login");
 
@@ -1001,6 +1245,29 @@ router.post("/user/handleRequest", function(req, res, next) {
 	var requestIndex = req.body.requestIndex;
 	var keys = req.body.keys; // campos aceptados
 	authenticateUser(userIndex, userPassword).then(function (response) {
+		
+		if(response) {
+			handleRequest(userIndex, userPassword, requestIndex, keys).then(function (result) {
+
+				res.send(result);
+			});
+			
+		} else {
+			res.send("Bad Login \n");
+		}
+
+	}).catch((error) => {
+		res.send(error);
+	});
+});
+
+router.post("/user/handleRequestCiphered", function(req, res, next) {
+	console.log("user/handleRequest");
+	var userIndex = req.body.userIndex;
+	var userPassword = req.body.userPassword;
+	var requestIndex = req.body.requestIndex;
+	var keys = req.body.keys; // campos aceptados
+	authenticateUserCiphered(userIndex, userPassword).then(function (response) {
 		
 		if(response) {
 			handleRequest(userIndex, userPassword, requestIndex, keys).then(function (result) {
