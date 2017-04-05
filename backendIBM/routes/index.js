@@ -13,12 +13,64 @@ var peers;
 var users;
 var chaincode = null;
 
+var cryptico = require("cryptico");
+
 init();
 despliegaUObtieneChaincode(prefer_type1_users(users));
 
 getUserIndex().then(function(userIndex) {
 	console.log(userIndex);
 })
+
+//CIFRADO MORRO:
+function crypto(passPhrase) {
+	this.bits = 1024;
+	this.passPhrase = passPhrase;
+	this.rsaKey = cryptico.generateRSAKey(this.passPhrase, this.bits);
+	this.rsaPublic = cryptico.publicKeyString(this.rsaKey);
+
+	// console.log("KEY");
+	// console.log(this.rsaKey);
+	// console.log("Prueba");
+	// console.log(this.rsaPublic);
+
+	this.encrypt = function(message){
+    	var result = cryptico.encrypt(message,this.rsaPublicKey);
+     	return result.cipher;
+   	};
+
+   	this.decrypt = function(message){
+     	var result = cryptico.decrypt(message, this.rsaKey);
+     	return result.plaintext;
+   	};
+}
+
+//CIFRADO NODO COOl
+function cipheredPassword(password) {
+	var bits = 1024;
+	var passPhrase = "exito";
+	var rsaKey = cryptico.generateRSAKey(password, bits);
+	var rsaPublic = cryptico.publicKeyString(rsaKey);
+
+	return cryptico.encrypt(passPhrase, rsaPublic).cipher;
+}
+
+function descipherPassword(cipher, password) {
+	var bits = 1024;
+	var rsaKey = cryptico.generateRSAKey(password, bits);
+	var rsaPublic = cryptico.publicKeyString(rsaKey);
+
+	return cryptico.decrypt(cipher, rsaKey).plaintext;	
+}
+
+// console.log(cipheredPassword("prueba"));
+
+// var t = cipheredPassword("prueba");
+
+// console.log(t);
+// console.log(descipherPassword(t, "prueba"));
+
+//crypto("PRUEBA");
 
 //Descomentar en produccion
 //setNodes();
@@ -42,7 +94,7 @@ getUserIndex().then(function(userIndex) {
 // 	console.log(error)
 // });
 
-// OBTENER NODOS
+// //OBTENER NODOS
 // getNodes().then(function(response) {
 // 	console.log(response);
 // });
@@ -556,13 +608,13 @@ router.post("/nodo/login", function (req, res, next) {
 	authenticateNode(username, password).then(function (response) {
 
 		if(response) {
-			res.send("SUCCESFUL\n");
+			res.json({"login": true});
 		} else {
-			res.send("BAD LOGIN\n");
+			res.json({"login": false});
 		}
 	}).catch((error) => {
  		console.log(error);
- 		res.send(error);
+ 		res.json({"login": false});
  	});
 });
 
